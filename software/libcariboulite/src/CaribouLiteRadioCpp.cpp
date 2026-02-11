@@ -130,34 +130,44 @@ int CaribouLiteRadio::ReadSamples(std::complex<short>* samples, size_t num_to_re
 }
 
 //==================================================================
+static inline int16_t float_to_i12(float x)
+{
+    // expected float range: [-1.0, +1.0]
+    // DAC / path seems scaled by 4096 in this codebase
+    float s = x * 4096.0f;
+
+    if (s >  32767.0f) s =  32767.0f;
+    if (s < -32768.0f) s = -32768.0f;
+
+    return static_cast<int16_t>(lrintf(s));
+}
+
 int CaribouLiteRadio::WriteSamples(std::complex<float>* samples, size_t num_to_write)
 {
-    // fill in the _write_samples internal buffer
     size_t written_so_far = 0;
     size_t left_to_write = num_to_write;
-    size_t mtu_size = GetNativeMtuSample();
-    
+    const size_t mtu_size = GetNativeMtuSample();
+
     while (written_so_far < num_to_write)
     {
         size_t current_write = left_to_write;
         size_t k = written_so_far;
         if (current_write > mtu_size) current_write = mtu_size;
-        
+
         for (size_t i = 0; i < current_write; i++, k++)
         {
-            _write_samples[i].real((uint16_t)(samples[k].real() * 4096));
-            _write_samples[i].imag((uint16_t)(samples[k].imag() * 4096));
+            _write_samples[i].real(float_to_i12(samples[k].real()));
+            _write_samples[i].imag(float_to_i12(samples[k].imag()));
         }
+
         int ret = WriteSamples(_write_samples, current_write);
-        if (ret <= 0)
-        {
-            break;
-        }
-        written_so_far += ret;
-        left_to_write -= ret;
+        if (ret <= 0) break;
+
+        written_so_far += static_cast<size_t>(ret);
+        left_to_write -= static_cast<size_t>(ret);
     }
-    
-    return written_so_far;
+
+    return static_cast<int>(written_so_far);
 }
 
 //==================================================================
