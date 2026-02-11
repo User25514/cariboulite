@@ -1218,9 +1218,16 @@ int cariboulite_radio_activate_channel(cariboulite_radio_state_st* radio,
                                                 0, 0x3F);
             
             // apply the state
-            caribou_smi_set_driver_streaming_state(&radio->sys->smi, smi_stream_tx_channel);            
-            caribou_fpga_set_smi_ctrl_data_direction (&radio->sys->fpga, 0);
-            //cariboulite_radio_set_modem_state(radio, cariboulite_radio_state_cmd_tx); 
+			caribou_smi_set_driver_streaming_state(&radio->sys->smi, smi_stream_tx_channel);
+			
+			// IMPORTANT: select the correct FPGA SMI channel (TX must do this too)
+			caribou_fpga_set_smi_channel(&radio->sys->fpga,
+			    radio->type == cariboulite_channel_s1g ? caribou_fpga_smi_channel_0 : caribou_fpga_smi_channel_1);
+			
+			caribou_fpga_set_smi_ctrl_data_direction(&radio->sys->fpga, 0);
+			
+			// IMPORTANT: actually go to TX state (otherwise you stay in TX_PREP)
+			cariboulite_radio_set_modem_state(radio, cariboulite_radio_state_cmd_tx);
         }
     }
 
